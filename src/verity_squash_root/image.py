@@ -4,9 +4,8 @@ import verity_squash_root.parsing as parsing
 from verity_squash_root.exec import exec_binary
 
 
-def mksquashfs(exclude_dirs: List[str], image: Path,
+def mksquashfs(include_dirs: List[str], exclude_dirs: List[str], image: Path,
                root_mount: Path, efi_partition: Path):
-    include_dirs = ["/"]
     all_excluded = [
         "dev", "proc", "run", "sys", "tmp",
         str(root_mount), str(efi_partition)] + exclude_dirs

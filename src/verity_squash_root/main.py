@@ -39,10 +39,12 @@ def create_squashfs_return_verity_hash(config: ConfigParser, image: Path) \
     root_mount = Path(config["DEFAULT"]["ROOT_MOUNT"])
     logging.debug("Image path: {}".format(image))
     efi_partition = Path(config["DEFAULT"]["EFI_PARTITION"])
+    include_dirs = config_str_to_stripped_arr(
+        config["DEFAULT"]["INCLUDE_DIRS"])
     exclude_dirs = config_str_to_stripped_arr(
         config["DEFAULT"]["EXCLUDE_DIRS"])
     logging.info("Creating squashfs...")
-    mksquashfs(exclude_dirs, image, root_mount, efi_partition)
+    mksquashfs(include_dirs, exclude_dirs, image, root_mount, efi_partition)
     logging.info("Setup device verity")
     root_hash = veritysetup_image(image)
     return root_hash
