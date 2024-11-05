@@ -99,12 +99,19 @@ def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
                           slot: str, root_hash: str,
                           tmp_efi_file: Path, add_cmdline: str = "") -> None:
     # add rw, if root is mounted ro, it cannot be mounted rw later
-    cmdline = "{} rw {} {p}_slot={} {p}_hash={}".format(
-        get_cmdline(config),
-        add_cmdline,
-        slot,
-        root_hash,
-        p=KERNEL_PARAM_BASE)
+    slot_cmd = f"{KERNEL_PARAM_BASE}_slot={slot}"
+    hash_cmd = f"{KERNEL_PARAM_BASE}_hash={root_hash}"
+
+    # Allows for removal of extra space in cmdline if add_cmdline is empty
+    commands = [get_cmdline(config), add_cmdline, "rw", slot_cmd, hash_cmd]
+    filtered_commands = [x for x in commands if x]
+    cmdline = " ".join(filtered_commands)
+    # cmdline = "{} rw {} {p}_slot={} {p}_hash={}".format(
+    #     get_cmdline(config),
+    #     add_cmdline,
+    #     slot,
+    #     root_hash,
+    #     p=KERNEL_PARAM_BASE)
     cmdline_file = TMPDIR / "cmdline"
     write_str_to(cmdline_file, cmdline)
     create_efi_executable(

@@ -1,5 +1,7 @@
 from typing import Optional
 from verity_squash_root.config import KERNEL_PARAM_BASE
+from string import ascii_lowercase, digits
+from secrets import choice
 
 
 def current_slot(kernel_cmdline: str) -> Optional[str]:
@@ -9,6 +11,9 @@ def current_slot(kernel_cmdline: str) -> Optional[str]:
             return p[24:].lower()
     return None
 
+def generate_slot() -> str:
+    alphabet = ascii_lowercase + digits
+    return ''.join(choice(alphabet) for _ in range(8))
 
 def unused_slot(kernel_cmdline: str) -> str:
     curr = current_slot(kernel_cmdline)

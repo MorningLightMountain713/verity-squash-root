@@ -80,8 +80,9 @@ def create_directory(path: Path):
 def create_image_and_sign_kernel(config: ConfigParser,
                                  distribution: DistributionConfig,
                                  initramfs: InitramfsBuilder):
-    kernel_cmdline = read_text_from(Path("/proc/cmdline"))
-    use_slot = cmdline.unused_slot(kernel_cmdline)
+    # kernel_cmdline = read_text_from(Path("/proc/cmdline"))
+    # use_slot = cmdline.unused_slot(kernel_cmdline)
+    use_slot = cmdline.generate_slot()
     efi_partition = Path(config["DEFAULT"]["EFI_PARTITION"])
     efi_dirname = distribution.efi_dirname()
     out_dir = efi_partition / EFI_KERNELS / efi_dirname
