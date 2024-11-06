@@ -11,7 +11,7 @@ from verity_squash_root.distributions.base import DistributionConfig
 from verity_squash_root.initramfs.base import InitramfsBuilder, \
     iterate_distribution_efi
 from verity_squash_root.file_names import backup_file, tmpfs_file, tmpfs_label
-from verity_squash_root.file_op import read_text_from
+from verity_squash_root.file_op import read_text_from, write_str_to
 from verity_squash_root.image import mksquashfs, veritysetup_image, \
     verity_image_path
 
@@ -92,6 +92,7 @@ def create_image_and_sign_kernel(config: ConfigParser,
     image = root_mount / "image_{}.squashfs".format(use_slot)
     tmp_image = TMPDIR / "tmp.squashfs"
     root_hash = create_squashfs_return_verity_hash(config, tmp_image)
+    write_str_to(Path(root_mount / "root_hash", root_hash))
     logging.debug("Calculated root hash: {}".format(root_hash))
     ignore_efis = config_str_to_stripped_arr(
         config["DEFAULT"]["IGNORE_KERNEL_EFIS"])
