@@ -92,7 +92,7 @@ def create_image_and_sign_kernel(config: ConfigParser,
     image = root_mount / "image_{}.squashfs".format(use_slot)
     tmp_image = TMPDIR / "tmp.squashfs"
     root_hash = create_squashfs_return_verity_hash(config, tmp_image)
-    write_str_to(Path(root_mount / "root_hash", root_hash))
+    write_str_to(Path(root_mount / "root_hash"), root_hash)
     logging.debug("Calculated root hash: {}".format(root_hash))
     ignore_efis = config_str_to_stripped_arr(
         config["DEFAULT"]["IGNORE_KERNEL_EFIS"])
