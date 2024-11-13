@@ -17,7 +17,7 @@ fi
 # workdir needs to be an empty directory, otherwise there can be file corruption
 rm -rf "${OLROOT}/workdir"
 mkdir -p "${OLROOT}/overlay" "${OLROOT}/workdir"
-IMAGE="${ROOT}/image_${SLOT}.squashfs"
+IMAGE="${ROOT}/images/image_${SLOT}.squashfs"
 veritysetup open "${IMAGE}" rootsq "${IMAGE}.verity" "${ROOTHASH}"
 mount -o ro "/dev/mapper/rootsq" "${TMP}/squashroot"
 # Disable xino, index and metacopy, so the underlying filesystem can be updated

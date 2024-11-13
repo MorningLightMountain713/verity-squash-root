@@ -5,19 +5,30 @@ from configparser import ConfigParser
 from typing import List, Union
 import verity_squash_root.cmdline as cmdline
 import verity_squash_root.efi as efi
-from verity_squash_root.config import TMPDIR, KERNEL_PARAM_BASE, KEY_DIR, \
-    EFI_KERNELS, config_str_to_stripped_arr
+from verity_squash_root.config import (
+    TMPDIR,
+    KERNEL_PARAM_BASE,
+    KEY_DIR,
+    EFI_KERNELS,
+    config_str_to_stripped_arr,
+)
 from verity_squash_root.distributions.base import DistributionConfig
-from verity_squash_root.initramfs.base import InitramfsBuilder, \
-    iterate_distribution_efi
+from verity_squash_root.initramfs.base import (
+    InitramfsBuilder,
+    iterate_distribution_efi,
+)
 from verity_squash_root.file_names import backup_file, tmpfs_file, tmpfs_label
 from verity_squash_root.file_op import read_text_from, write_str_to
-from verity_squash_root.image import mksquashfs, veritysetup_image, \
-    verity_image_path
+from verity_squash_root.image import (
+    mksquashfs,
+    veritysetup_image,
+    verity_image_path,
+)
 
 
-def move_kernel_to(src: Path, dst: Path, slot: str,
-                   dst_backup: Union[Path, None]) -> None:
+def move_kernel_to(
+    src: Path, dst: Path, slot: str, dst_backup: Union[Path, None]
+) -> None:
     if dst.exists():
         overwrite_file = efi.file_matches_slot_or_is_broken(dst, slot)
         if overwrite_file or dst_backup is None:
@@ -34,15 +45,14 @@ def move_kernel_to(src: Path, dst: Path, slot: str,
     shutil.move(src, dst)
 
 
-def create_squashfs_return_verity_hash(config: ConfigParser, image: Path) \
-        -> str:
+def create_squashfs_return_verity_hash(
+    config: ConfigParser, image: Path
+) -> str:
     root_mount = Path(config["DEFAULT"]["ROOT_MOUNT"])
     logging.debug("Image path: {}".format(image))
     efi_partition = Path(config["DEFAULT"]["EFI_PARTITION"])
-    include_dirs = config_str_to_stripped_arr(
-        config["DEFAULT"]["INCLUDE_DIRS"])
-    exclude_dirs = config_str_to_stripped_arr(
-        config["DEFAULT"]["EXCLUDE_DIRS"])
+    include_dirs = config_str_to_stripped_arr(config["DEFAULT"]["INCLUDE_DIRS"])
+    exclude_dirs = config_str_to_stripped_arr(config["DEFAULT"]["EXCLUDE_DIRS"])
     logging.info("Creating squashfs...")
     mksquashfs(include_dirs, exclude_dirs, image, root_mount, efi_partition)
     logging.info("Setup device verity")
@@ -50,12 +60,18 @@ def create_squashfs_return_verity_hash(config: ConfigParser, image: Path) \
     return root_hash
 
 
-def build_and_move_kernel(config: ConfigParser,
-                          vmlinuz: Path, initramfs: Path,
-                          use_slot: str, root_hash: str, cmdline_add: str,
-                          base_name: str, out_dir: Path,
-                          label: str,
-                          ignore_efis: List[str]):
+def build_and_move_kernel(
+    config: ConfigParser,
+    vmlinuz: Path,
+    initramfs: Path,
+    use_slot: str,
+    root_hash: str,
+    cmdline_add: str,
+    base_name: str,
+    out_dir: Path,
+    label: str,
+    ignore_efis: List[str],
+):
     if base_name in ignore_efis:
         return
     logging.info("Processing {}".format(label))
@@ -67,9 +83,15 @@ def build_and_move_kernel(config: ConfigParser,
     logging.debug("Write efi to {}".format(out))
     # Store files to sign on trusted tmpfs
     tmp_efi_file = TMPDIR / "tmp.efi"
-    efi.build_and_sign_kernel(config, vmlinuz, initramfs, use_slot,
-                              root_hash, tmp_efi_file,
-                              cmdline_add)
+    efi.build_and_sign_kernel(
+        config,
+        vmlinuz,
+        initramfs,
+        use_slot,
+        root_hash,
+        tmp_efi_file,
+        cmdline_add,
+    )
     move_kernel_to(tmp_efi_file, out, use_slot, backup_out)
 
 
@@ -77,9 +99,11 @@ def create_directory(path: Path):
     path.mkdir(parents=True, exist_ok=True)
 
 
-def create_image_and_sign_kernel(config: ConfigParser,
-                                 distribution: DistributionConfig,
-                                 initramfs: InitramfsBuilder):
+def create_image_and_sign_kernel(
+    config: ConfigParser,
+    distribution: DistributionConfig,
+    initramfs: InitramfsBuilder,
+):
     # kernel_cmdline = read_text_from(Path("/proc/cmdline"))
     # use_slot = cmdline.unused_slot(kernel_cmdline)
     use_slot = cmdline.generate_slot()
@@ -89,16 +113,18 @@ def create_image_and_sign_kernel(config: ConfigParser,
     create_directory(out_dir)
     logging.info("Using slot {} for new image".format(use_slot))
     root_mount = Path(config["DEFAULT"]["ROOT_MOUNT"])
-    image = root_mount / "image_{}.squashfs".format(use_slot)
+    image = root_mount / "images/image_{}.squashfs".format(use_slot)
     tmp_image = TMPDIR / "tmp.squashfs"
     root_hash = create_squashfs_return_verity_hash(config, tmp_image)
     write_str_to(Path(root_mount / "root_hash"), root_hash)
     logging.debug("Calculated root hash: {}".format(root_hash))
     ignore_efis = config_str_to_stripped_arr(
-        config["DEFAULT"]["IGNORE_KERNEL_EFIS"])
+        config["DEFAULT"]["IGNORE_KERNEL_EFIS"]
+    )
 
-    for [kernel, preset, base_name] in iterate_distribution_efi(distribution,
-                                                                initramfs):
+    for [kernel, preset, base_name] in iterate_distribution_efi(
+        distribution, initramfs
+    ):
         vmlinuz = distribution.vmlinuz(kernel)
         base_name = initramfs.file_name(kernel, preset)
         base_name_tmpfs = tmpfs_file(base_name)
@@ -110,17 +136,29 @@ def create_image_and_sign_kernel(config: ConfigParser,
 
         logging.info("Create initramfs for {}".format(display))
         initramfs_path = initramfs.build_initramfs_with_microcode(
-            kernel, preset)
+            kernel, preset
+        )
 
         def build(bn, label, cmdline_add):
-            build_and_move_kernel(config, vmlinuz, initramfs_path,
-                                  use_slot, root_hash, cmdline_add,
-                                  bn, out_dir, label,
-                                  ignore_efis)
+            build_and_move_kernel(
+                config,
+                vmlinuz,
+                initramfs_path,
+                use_slot,
+                root_hash,
+                cmdline_add,
+                bn,
+                out_dir,
+                label,
+                ignore_efis,
+            )
 
         build(base_name, display, "")
-        build(base_name_tmpfs, tmpfs_label(display),
-              "{}_volatile".format(KERNEL_PARAM_BASE))
+        build(
+            base_name_tmpfs,
+            tmpfs_label(display),
+            "{}_volatile".format(KERNEL_PARAM_BASE),
+        )
 
     # Only replace old image if initramfs was successfully created
     shutil.move(tmp_image, image)
@@ -142,8 +180,10 @@ def backup_and_sign_extra_files(config: ConfigParser):
         logging.info("Signing {}...".format(key))
         files = extra[key].split("=>")
         if len(files) != 2:
-            raise ValueError("extra signing files need to be specified as\n"
-                             "name = SOURCE => DEST")
+            raise ValueError(
+                "extra signing files need to be specified as\n"
+                "name = SOURCE => DEST"
+            )
         src = Path(files[0].strip())
         dest = Path(files[1].strip())
         logging.debug("Sign file '{}' to '{}'".format(src, dest))
