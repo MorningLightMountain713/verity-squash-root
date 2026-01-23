@@ -17,6 +17,11 @@ def format_cmd(cmd: str, file: Path) -> List[str]:
 
 
 def decrypt_secure_boot_keys(config: ConfigParser) -> None:
+    # If no decrypt command is configured, skip decryption
+    # This allows for HSM-based signing where keys don't need to be decrypted locally
+    if "DECRYPT_SECURE_BOOT_KEYS_CMD" not in config["DEFAULT"]:
+        return
+
     cmd = config["DEFAULT"]["DECRYPT_SECURE_BOOT_KEYS_CMD"]
     cmd_arr = format_cmd(cmd, TAR_FILE)
     KEY_DIR.mkdir()
@@ -38,4 +43,6 @@ class DecryptKeys:
         decrypt_secure_boot_keys(self._config)
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        shutil.rmtree(KEY_DIR)
+        # Only cleanup if KEY_DIR exists (it won't if decryption was skipped)
+        if KEY_DIR.exists():
+            shutil.rmtree(KEY_DIR)
