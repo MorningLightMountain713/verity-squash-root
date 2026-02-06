@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 from collections import OrderedDict
@@ -61,12 +62,19 @@ def calculate_efi_stub_alignment(stub: Path) -> int:
 
 # TODO: use systemd-ukify when Debian 13 is stable
 def create_efi_executable(stub: Path, cmdline_file: Path, linux: Path,
-                          initrd: Path, dest: Path):
+                          initrd: Path, dest: Path,
+                          credentials: list[tuple[str, Path]] | None = None):
     offset = calculate_efi_stub_end(stub)
     alignment = calculate_efi_stub_alignment(stub)
     sections = OrderedDict()
     sections["osrel"] = Path("/etc/os-release")
     sections["cmdline"] = cmdline_file
+
+    # Add credentials (measured into PCR 12) before initrd
+    if credentials:
+        for cred_name, cred_file in credentials:
+            sections[f"cred.{cred_name}"] = cred_file
+
     sections["initrd"] = initrd
     # place linux at the end so decompressing it in-place does not
     # cause problems:
@@ -97,7 +105,9 @@ def get_cmdline(config: ConfigParser) -> str:
 
 def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
                           slot: str, root_hash: str,
-                          tmp_efi_file: Path, add_cmdline: str = "") -> None:
+                          tmp_efi_file: Path, add_cmdline: str = "",
+                          system_name: str = "unknown",
+                          system_version: str = "0") -> None:
     # add rw, if root is mounted ro, it cannot be mounted rw later
     slot_cmd = f"{KERNEL_PARAM_BASE}_slot={slot}"
     hash_cmd = f"{KERNEL_PARAM_BASE}_hash={root_hash}"
@@ -114,10 +124,22 @@ def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
     #     p=KERNEL_PARAM_BASE)
     cmdline_file = TMPDIR / "cmdline"
     write_str_to(cmdline_file, cmdline)
+
+    # Create system identity credential for PCR 12 measurement
+    identity = {
+        "system": system_name,
+        "version": system_version,
+        "slot": slot,
+        "hash": root_hash
+    }
+    identity_file = TMPDIR / "system-identity.cred"
+    write_str_to(identity_file, json.dumps(identity))
+
     create_efi_executable(
         Path(config["DEFAULT"]["EFI_STUB"]),
         cmdline_file,
         vmlinuz,
         initramfs,
-        tmp_efi_file)
+        tmp_efi_file,
+        credentials=[("system-identity", identity_file)])
     sign(KEY_DIR, tmp_efi_file, tmp_efi_file)

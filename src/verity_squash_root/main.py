@@ -71,6 +71,8 @@ def build_and_move_kernel(
     out_dir: Path,
     label: str,
     ignore_efis: List[str],
+    system_name: str,
+    system_version: str,
 ):
     if base_name in ignore_efis:
         return
@@ -91,6 +93,8 @@ def build_and_move_kernel(
         root_hash,
         tmp_efi_file,
         cmdline_add,
+        system_name,
+        system_version,
     )
     move_kernel_to(tmp_efi_file, out, use_slot, backup_out)
 
@@ -103,6 +107,8 @@ def create_image_and_sign_kernel(
     config: ConfigParser,
     distribution: DistributionConfig,
     initramfs: InitramfsBuilder,
+    system_name: str = "unknown",
+    system_version: str = "0",
 ):
     # kernel_cmdline = read_text_from(Path("/proc/cmdline"))
     # use_slot = cmdline.unused_slot(kernel_cmdline)
@@ -151,6 +157,8 @@ def create_image_and_sign_kernel(
                 out_dir,
                 label,
                 ignore_efis,
+                system_name,
+                system_version,
             )
 
         build(base_name, display, "")

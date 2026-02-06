@@ -100,9 +100,15 @@ def parse_params_and_run():
                           help="Check the system and print warnings if "
                                "the\nconfiguration does not match the "
                                "recommendation.")
-    cmd_parser.add_parser("build",
+    build_parser = cmd_parser.add_parser("build",
                           help="Build squashfs, verity-info, efi binaries "
                                "and sign\nthem.")
+    build_parser.add_argument("--system-name",
+                             default="unknown",
+                             help="System name to embed in UKI credential (e.g., 'fluxos')")
+    build_parser.add_argument("--system-version",
+                             default="0",
+                             help="System version to embed in UKI credential (e.g., '2510')")
     setup_parser = cmd_parser.add_parser("setup",
                                          formatter_class=(
                                              argparse.RawTextHelpFormatter),
@@ -160,8 +166,11 @@ def parse_params_and_run():
         elif args.command == "build":
             with TmpfsMount(TMPDIR):
                 with DecryptKeys(config):
-                    create_image_and_sign_kernel(config, distribution,
-                                                 initramfs)
+                    create_image_and_sign_kernel(
+                        config, distribution, initramfs,
+                        system_name=args.system_name,
+                        system_version=args.system_version
+                    )
         elif args.command == "sign-extra-files":
             with TmpfsMount(TMPDIR):
                 with DecryptKeys(config):
