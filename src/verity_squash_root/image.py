@@ -12,6 +12,8 @@ def mksquashfs(include_dirs: List[str], exclude_dirs: List[str], image: Path,
     options = ["-reproducible", "-xattrs", "-wildcards", "-noappend",
                # prevents overlayfs corruption on updates
                "-no-exports",
+               # auto-create missing intermediate dirs (mksquashfs 4.7+)
+               "-pd", "d 0700 0 0",
                "-p", "{} d 0700 0 0".format(root_mount),
                "-p", "{} d 0700 0 0".format(efi_partition)]
     cmd = ["mksquashfs"] + include_dirs + [str(image)] + options + ["-e"]
