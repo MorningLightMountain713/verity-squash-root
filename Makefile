@@ -27,6 +27,8 @@ install-no-py:
 	install -dm 755 $(DESTDIR)/$(DRACUTDIR)
 	install -Dm 755 $(DRACUTDIR)/module-setup.sh \
 		$(DESTDIR)/$(DRACUTDIR)
+	install -Dm 755 $(DRACUTDIR)/overlay-pre-shutdown.sh \
+		$(DESTDIR)/$(DRACUTDIR)
 	install -Dm 644 $(DRACUTDIR)/cryptsetup_overlay.conf \
 		$(DESTDIR)/$(DRACUTDIR)
 	install -Dm 644 $(DRACUTDIR)/dracut_mount_overlay.conf \

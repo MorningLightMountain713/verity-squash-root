@@ -70,6 +70,11 @@ install() {
 	inst /usr/lib/verity-squash-root/show_boot_info
 	DRACUT_RESOLVE_DEPS=1 inst_multiple mount umount sed sleep veritysetup
 
+	# Unwind the overlay root at shutdown, symmetric to mount_handler at boot:
+	# the overlay's upper/lowerdir are submounts of the root, which deadlocks
+	# dracut's generic umount after the pivot (see overlay-pre-shutdown.sh).
+	inst_hook pre-shutdown 50 "${mod}/overlay-pre-shutdown.sh"
+
 	# needed for veritysetup
 	inst_binary dmeventd
 	inst_binary dmsetup
