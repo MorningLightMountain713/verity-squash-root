@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 from typing import List, MutableMapping
@@ -36,8 +37,20 @@ class DistributionConfig:
             return [int_or_str(a)
                     for a in re.split('([0-9]+)', e)]
 
-        return sorted([k.name for k in self._modules_dir.iterdir()],
-                      reverse=True, key=human_sort)
+        kernels = sorted([k.name for k in self._modules_dir.iterdir()],
+                         reverse=True, key=human_sort)
+
+        # Build only the kernels named in VSR_KERNEL_VERSIONS (comma-separated),
+        # when set. This lets a caller that pins a specific kernel build just
+        # that one, without having to delete every other kernel from the build
+        # host's /usr/lib/modules first. Unset/empty preserves upstream
+        # behaviour: build every installed kernel.
+        only = os.environ.get("VSR_KERNEL_VERSIONS", "").strip()
+        if only:
+            wanted = {v.strip() for v in only.split(",") if v.strip()}
+            kernels = [k for k in kernels if k in wanted]
+
+        return kernels
 
     def microcode_paths(self) -> List[Path]:
         raise NotImplementedError("Base class")
