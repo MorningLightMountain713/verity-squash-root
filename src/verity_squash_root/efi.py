@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+import os
 from collections import OrderedDict
 from configparser import ConfigParser
 from pathlib import Path
@@ -35,8 +36,14 @@ def file_matches_slot_or_is_broken(file: Path, slot: str):
 
 
 def sign(key_dir: Path, in_file: Path, out_file: Path) -> None:
+    # The signing tool is configurable (VSR_SIGN_TOOL) so a caller can route
+    # signing through its own signer -- e.g. an HSM client -- instead of local
+    # sbsign, without shadowing the sbsign binary. Default keeps upstream
+    # behaviour. The tool must accept sbsign's --key/--cert/--output <in>
+    # interface (extra options it does not use may be ignored).
+    sign_tool = os.environ.get("VSR_SIGN_TOOL", "sbsign")
     exec_binary([
-        "sbsign",
+        sign_tool,
         "--key", str(key_dir / DB_KEY_FILE),
         "--cert",  str(key_dir / DB_CERT_FILE),
         "--output", str(out_file), str(in_file)])
