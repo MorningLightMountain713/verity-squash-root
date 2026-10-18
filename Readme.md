@@ -1,236 +1,99 @@
 # verity-squash-root
 ## Build signed efi binaries which mount a dm-verity verified squashfs image as rootfs on boot.
 
-### [Install](#install) - [Configuration](#configuration) - [Usage](#usage) - [Development](#development)
+A fork of [brandsimon/verity-squash-root](https://github.com/brandsimon/verity-squash-root)
+for building FluxOS images on a build host. Signing is delegated to an external
+tool (an HSM client); no secure-boot key is ever held locally.
 
-The goal of this project is to reduce the harm a successful attacker can
-do to a system. It prevents an attacker of persistently modifying the
-root-filesystem. This gets accomplished via building a chain-of-trust based
-on UEFI secure boot. The system-firmware verifies the signature of the UKI
-(unified-kernel-image). The UKI verifies the squashfs-rootfs via dm-verity.
-On boot you can choose to boot the squashfs with a tmpfs overlay. You start
-with the system you signed the last time and changes are discarded on power
-off.
-So if you reboot in the tmpfs variant, the system is in a state you signed
-before and the modifications in the time between by an attacker are gone.
-You can also boot in persistent mode, which loads changes from disk and saves
-them to the disk.
+The firmware verifies the signature of the UKI (unified kernel image); the UKI
+verifies the squashfs root via dm-verity and mounts an overlay on top of it:
 
-This project also provides A/B-style update support. The current booted files
-(GKI and squashfs) won't be overridden on updates, so you can boot an old
-known-good image if there are problems). The squashfs images are stored on the
-configured root-partition, so they will still be encrypted, if encryption of
-the root image is configured.
+- **persistent**: the overlay's upper layer is the `overlay` directory on the
+  root partition, so changes survive a reboot.
+- **volatile**: the upper layer is a tmpfs, so every boot starts from the
+  signed image and changes are held in RAM.
 
 #### What happens on boot?
 
- - The initramfs mounts the root-partition as before.
-   This is why encryption of the root-partition still works.
-   Cmdline parameters to decrypt still need to be configured.
- - Depending on the kernel cmdline, either the A or B image will be verified
-   via dm-verity and used. (The build command will set these automatically.)
-   If you boot a tmpfs image, a tmpfs will be used as overlay image for
-   volatile changes (Note: the changes will be stored in the system RAM).
-   If you boot a non-tmpfs image, the folder overlay on the root-partition
-   will be used as overlayfs upper directory to save persistent changes.
+ - The initramfs mounts the root partition. Encryption of the root partition
+   works as before; its cmdline parameters still need to be configured.
+ - The image named by the cmdline's slot is verified via dm-verity and used.
+   The build sets these parameters.
+ - The overlay is set up as above, chosen by the cmdline parameter
+   `verity_squash_root_volatile`.
 
-## Install
+## Usage
 
- - Install verity-squash-root from [AUR](https://aur.archlinux.org/packages/verity-squash-root/)
-   or install a [package built by CI](https://github.com/brandsimon/verity-squash-root-packages).
- - Create your encrypted secure-boot keys:
-```bash
-verity-squash-root --ignore-warnings create-keys
 ```
- - Mount your EFI partition and [configure](#configuration) it.
- - Add your EFI partition to `/etc/fstab`.
- - Make sure your EFI partition is big enough (1 GB recommended).
- - Create directory `/mnt/root`.
- - Mount your root-partition to `/mnt/root` and configure it in fstab file.
- - Configure your kernel cmdline  (see: [Configuration](#configuration))
- - Exclude directories or files not wanted in the squashfs in the config file (`EXCLUDE_DIRS`)
- - Configure a bind-mount for every excluded directory from `/mnt/root/...`
- - Configure distribution specific options (see [Configuration](#configuration))
- - Install systemd-boot, configure it and build the first image:
-```
-verity-squash-root --ignore-warnings setup systemd
-verity-squash-root --ignore-warnings build
-```
- - Now reboot into the squashfs
- - If everything works as expected, enable secure-boot with the keys
-   from `/etc/verity_squash_root/public_keys.tar`.
-
-### Updates
-
- - Boot into a tmpfs image.
- - Update your distribution
- - Create new squashfs image with signed efis:
-```
-verity-squash-root build
+VSR_SIGN_TOOL=/path/to/signer verity-squash-root build \
+    --system-name fluxos --system-version 1234
+VSR_SIGN_TOOL=/path/to/signer verity-squash-root sign-extra-files
 ```
 
-### Using custom keys
+Environment:
 
-Make yourself familiar with the process of creating, installing and using
-custom Secure Boot keys. See:
- - https://wiki.archlinux.org/index.php/Secure_Boot
- - https://www.rodsbooks.com/efi-bootloaders/controlling-sb.html
+- `VSR_SIGN_TOOL` (required): called as `<tool> --output <out> <in>` for every
+  efi binary.
+- `VSR_KERNEL_VERSIONS`: comma-separated kernel versions to build; unset builds
+  every kernel in `/usr/lib/modules`.
+- `TMPDIR`: scratch files (the squashfs image before it is moved into place,
+  initramfs, unsigned UKI) go in a fresh directory under it, removed on exit.
 
-After you have generated your custom keys:
-```bash
-cd to/your/keys/directory
-tar cf keys.tar db.key db.crt
-age -p -e -o keys.tar.age keys.tar
-mv keys.tar.age /etc/verity_squash_root/
-rm keys.tar
-```
- - Remove your plaintext keys
+A failure exits non-zero.
 
 ## Configuration
 
 The config file is located at `/etc/verity_squash_root/config.ini`.
-These config options are available:
 
 #### Section `DEFAULT`
 
-- `CMDLINE`: configures kernel cmdline, if not configured,
-fallback to `/etc/kernel/cmdline`.
-- `EFI_STUB`: path to efi stub, default is the one provided by systemd.
-- `DECRYPT_SECURE_BOOT_KEYS_CMD`: Command to decrypt your secure-boot keys
-tarfile, {} will be replaced with the output tar file. `db.key` and `db.crt`
-in the tarfile are used to sign the efi binaries.
-- `EXCLUDE_DIRS`: These directories are not included in the squashfs image.
-`EFI_PARTITION` and `ROOT_MOUNT` are excluded automatically.
-- `EFI_PARTITION`: Path to your efi partition. Efi binaries and systemd-boot
-configuration files are stored there.
-- `ROOT_MOUNT`: Path to your "original" root partition.
-- `IGNORE_KERNEL_EFIS`: Which efi binaries are not built. You can use the
-`list` parameter to show which can exist and which are excluded already.
+- `CMDLINE` (required): the kernel cmdline.
+- `EFI_STUB`: path to the efi stub, default is the one provided by systemd.
+- `INCLUDE_DIRS`: directories the squashfs image is built from.
+- `EXCLUDE_DIRS`: directories whose contents are left out of the image.
+- `EFI_PARTITION`: efi binaries are written to
+  `<EFI_PARTITION>/EFI/verity_squash_root/<os id>/`.
+- `ROOT_MOUNT`: the image and its verity data are written to
+  `<ROOT_MOUNT>/images/`, the root hash to `<ROOT_MOUNT>/root_hash`.
+- `VARIANTS`: comma-separated, `persistent` and/or `volatile`. Each kernel gets
+  `<name>.efi` for persistent and `<name>_tmpfs.efi` for volatile.
 
 #### Section `EXTRA_SIGN`
 
-You can specify files to be signed when running with the `sign_extra_files`
-command. The format is:
+Files signed by `sign-extra-files`, one per line:
 ```
 NAME = SOURCE_PATH => DESTINATION_PATH
 ```
-e.g. to sign the systemd-boot efi files:
-```
-[EXTRA_SIGN]
-systemd-boot = /usr/lib/systemd/boot/efi/systemd-bootx64.efi => /boot/efi/EFI/systemd/systemd-bootx64.efi
-```
-
-Be careful to not specify files from untrusted sources, e.g. the ESP
-partition. An attacker could exchange these files.
 
 ### Supported setups
 
-Currently Arch Linux and Debian are supported with mkinitcpio and dracut.
-Mkinitcpio is only supported, if it is used with systemd-hooks.
-
-## Considerations / Recommendations
-
- - Directly before updating, reboot into a tmpfs overlay, so modifications made
-by an attacker are removed and you have your trusted environment from the last
-update.
- - If you enable automatic decryption of your secure-boot keys, an
-attacker who gets access can also sign efi binaries. So manually decrypting
-secure-boot keys via age is more secure.
- - To be sure to only enter the password for your secure-boot keys
-on your machine, you can verify your machine on boot with
-[tpm2-totp](https://github.com/tpm2-software/tpm2-totp) or
-[cryptographic-id](https://gitlab.com/cryptographic_id/cryptographic-id-rs).
- - Encrypt your root partition! If your encryption was handled by the
-initramfs (dracut/mkinitcpio) before installation, it will work with the
-squashfs root image as well.
- - You can only configure the network in the persistent system. This way you
-can download updates, reboot into the tmpfs system and install them offline.
-
-## Usage
-
-To list all efi images, which will be created or ignored via
-`IGNORE_KERNEL_EFIS`:
-```
-verity-squash-root list
-```
-
-To install systemd-boot and create a UEFI Boot Manager entry for it:
-```
-verity-squash-root setup systemd
-```
-
-To add efi files to the UEFI Boot Manager with /dev/sda1 as EFI partition:
-```
-verity-squash-root setup uefi /dev/sda 1
-```
-
-To build a new squashfs image and efi files:
-```
-verity-squash-root build
-```
-
-If you are not yet booted in a verified image, you need `--ignore-warnings`,
-since there will be a warning if the root image is not fully verified.
+Debian and Debian-like distributions with dracut.
 
 ## Files
 
-The following files will be used on your root-partition:
+On the root partition:
 
-Images with verity info:
-
-- `image_a.squashfs`, `image_a.squashfs.verity`,
-- `image_b.squashfs` `image_b.squashfs.verity`
-
-Overlayfs directories:
-
-- `overlay` `workdir`
+- `images/image_<slot>.squashfs`, `images/image_<slot>.squashfs.verity`
+- `overlay`, `workdir`: the persistent overlay's directories
 
 ## Development
 
 ### Dependencies
 
 ```
-age (only when used for decryption of secure-boot keys)
 binutils
 cryptsetup-bin
-efitools
+dracut
 python
-sbsigntool
 squashfs-tools
 systemd-boot-efi (only when no other efi-stub is configured)
-tar
-```
-
-#### Development
-
-```
-python-pyflakes
-python-pycodestyle
-```
-
-### Setup
-
-Setup a python3 virtual environment:
-
-```shell
-git clone git@github.com:brandsimon/verity-squash-root.git
-python3 -m venv .venv
-.venv/bin/pip install -e . --no-deps
 ```
 
 Run unit tests:
 
 ```shell
-sudo mkdir -p /etc/mkinitcpio.d  # Otherwise mkinitcpio test will fail
-.venv/bin/python -m unittest tests/unit/tests.py
+python3 -m venv .venv
+.venv/bin/pip install -e . --no-deps
+.venv/bin/pip install pycodestyle pyflakes
+.venv/bin/python -m unittest discover -s tests -t .
 ```
-
-## Related resources
-
-* https://wiki.archlinux.org/index.php/Unified_Extensible_Firmware_Interface
-* https://wiki.archlinux.org/index.php/Secure_Boot
-* https://www.rodsbooks.com/efi-bootloaders/index.html
-* https://bentley.link/secureboot/
-* [sbupdate](https://github.com/andreyv/sbupdate) — tool to automatically sign
-Arch Linux kernels
-* [Foxboron/sbctl](https://github.com/Foxboron/sbctl) — Secure Boot Manager

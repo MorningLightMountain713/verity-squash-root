@@ -1,6 +1,5 @@
 BASHCOMPDIR := usr/share/bash-completion/completions
 DRACUTDIR := usr/lib/dracut/modules.d/99verity-squash-root
-INITCPIODIR := usr/lib/initcpio/install
 SERVICEDIR := usr/lib/systemd/system
 
 .PHONY: all install
@@ -13,7 +12,6 @@ dist/*.whl:
 install-no-py:
 	install -dm 755 $(DESTDIR)
 	install -dm 755 $(DESTDIR)/usr/lib/verity-squash-root
-	install -dm 755 $(DESTDIR)/$(INITCPIODIR)
 	install -dm 755 $(DESTDIR)/$(BASHCOMPDIR)
 	install -dm 755 $(DESTDIR)/usr/share/licenses/verity-squash-root
 	install -dm 755 $(DESTDIR)/usr/share/verity_squash_root/ \
@@ -33,8 +31,6 @@ install-no-py:
 		$(DESTDIR)/$(DRACUTDIR)
 	install -Dm 644 $(DRACUTDIR)/dracut_mount_overlay.conf \
 		$(DESTDIR)/$(DRACUTDIR)
-	install -Dm 644 $(INITCPIODIR)/verity-squash-root \
-		$(DESTDIR)/$(INITCPIODIR)
 	install -Dm 755 $(BASHCOMPDIR)/verity-squash-root \
 		$(DESTDIR)/$(BASHCOMPDIR)
 	install -dm 755 $(DESTDIR)/$(SERVICEDIR)

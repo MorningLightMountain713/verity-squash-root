@@ -1,7 +1,7 @@
 import os
 import re
 from pathlib import Path
-from typing import List, MutableMapping
+from typing import List
 
 
 class DistributionConfig:
@@ -40,33 +40,11 @@ class DistributionConfig:
         kernels = sorted([k.name for k in self._modules_dir.iterdir()],
                          reverse=True, key=human_sort)
 
-        # Build only the kernels named in VSR_KERNEL_VERSIONS (comma-separated),
-        # when set. This lets a caller that pins a specific kernel build just
-        # that one, without having to delete every other kernel from the build
-        # host's /usr/lib/modules first. Unset/empty preserves upstream
-        # behaviour: build every installed kernel.
+        # VSR_KERNEL_VERSIONS (comma-separated), when set, limits the build
+        # to those kernels; unset or empty builds every installed kernel.
         only = os.environ.get("VSR_KERNEL_VERSIONS", "").strip()
         if only:
             wanted = {v.strip() for v in only.split(",") if v.strip()}
             kernels = [k for k in kernels if k in wanted]
 
         return kernels
-
-    def microcode_paths(self) -> List[Path]:
-        raise NotImplementedError("Base class")
-
-
-def calc_kernel_packages_not_unique(distribution: DistributionConfig) \
-        -> List[str]:
-    mapping: MutableMapping[str, str] = {}
-    result = []
-    for kernel in distribution.list_kernels():
-        file_name = distribution.kernel_to_name(kernel)
-        if file_name in mapping:
-            result.append("Package {} has multiple kernel versions: {}, {}"
-                          .format(file_name, kernel, mapping[file_name]))
-        mapping[file_name] = kernel
-    if len(result) > 0:
-        result.append("This means, that there are probably old files in "
-                      "/usr/lib/modules")
-    return result

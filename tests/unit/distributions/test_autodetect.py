@@ -2,7 +2,7 @@ import unittest
 from unittest import mock
 from verity_squash_root.distributions.autodetect import load_os_release, \
     autodetect_distribution
-from tests.unit.test_helper import get_test_files_path
+from tests.unit.helpers import get_test_files_path
 
 
 TEST_FILES_DIR = get_test_files_path("distributions")
@@ -35,12 +35,12 @@ class DistributionDetectTest(unittest.TestCase):
                           })
 
     @mock.patch("verity_squash_root.distributions.autodetect.ETC_FILE",
-                new=TEST_FILES_DIR / "arch")
-    @mock.patch("verity_squash_root.distributions.autodetect.ArchLinuxConfig")
-    def test__autodetect_distribution__arch(self, mock):
-        result = autodetect_distribution()
-        mock.assert_called_once_with("arch", "My Arch")
-        self.assertEqual(result, mock())
+                new=TEST_FILES_DIR / "etc-os-release")
+    def test__autodetect_distribution__unsupported(self):
+        with self.assertRaises(ValueError) as e:
+            autodetect_distribution()
+        self.assertEqual(str(e.exception),
+                         "Distribution arch not yet supported")
 
     @mock.patch("verity_squash_root.distributions.autodetect.ETC_FILE",
                 new=TEST_FILES_DIR / "debian")

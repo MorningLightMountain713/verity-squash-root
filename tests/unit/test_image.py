@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest import mock
 from verity_squash_root.image import mksquashfs, veritysetup_image, \
     verity_image_path
-from .test_helper import PROJECT_ROOT
+from tests.unit.helpers import PROJECT_ROOT
 
 
 class ImageTest(unittest.TestCase):
@@ -23,20 +23,29 @@ class ImageTest(unittest.TestCase):
 
     @mock.patch("verity_squash_root.image.exec_binary")
     def test__mksquashfs(self, mock):
-        setup = str(PROJECT_ROOT / "setup.py")
-        mksquashfs(["var/!(lib)", "/home", setup, "/root"], "/image.squashfs",
-                   "/mnt/root/", "/boot/weird/efi")
+        setup = str(PROJECT_ROOT / "Makefile")
+        mksquashfs(["/root/target"],
+                   ["var/!(lib)", "/home", setup, "/root"],
+                   Path("/image.squashfs"))
         mock.assert_called_once_with(
-            ['mksquashfs', '/', '/image.squashfs',
+            ['mksquashfs', '/root/target', '/image.squashfs',
              '-reproducible', '-xattrs', '-wildcards', '-noappend',
              '-no-exports',
-             '-p', '/mnt/root/ d 0700 0 0',
-             '-p', '/boot/weird/efi d 0700 0 0',
              '-e', 'dev/*', 'dev/.*',
              'proc/*', 'proc/.*', 'run/*', 'run/.*', 'sys/*', 'sys/.*',
-             'tmp/*', 'tmp/.*', 'mnt/root/*', 'mnt/root/.*',
-             'boot/weird/efi/*', 'boot/weird/efi/.*',
+             'tmp/*', 'tmp/.*',
              'var/!(lib)/*', 'var/!(lib)/.*',
              'home/*', 'home/.*',
              setup[1:],
              'root/*', 'root/.*'])
+
+    @mock.patch("verity_squash_root.image.exec_binary")
+    def test__mksquashfs__no_excludes(self, mock):
+        mksquashfs(["/root/target"], [], Path("/image.squashfs"))
+        mock.assert_called_once_with(
+            ['mksquashfs', '/root/target', '/image.squashfs',
+             '-reproducible', '-xattrs', '-wildcards', '-noappend',
+             '-no-exports',
+             '-e', 'dev/*', 'dev/.*',
+             'proc/*', 'proc/.*', 'run/*', 'run/.*', 'sys/*', 'sys/.*',
+             'tmp/*', 'tmp/.*'])

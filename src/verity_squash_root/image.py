@@ -4,18 +4,11 @@ import verity_squash_root.parsing as parsing
 from verity_squash_root.exec import exec_binary
 
 
-def mksquashfs(include_dirs: List[str], exclude_dirs: List[str], image: Path,
-               root_mount: Path, efi_partition: Path):
-    all_excluded = [
-        "dev", "proc", "run", "sys", "tmp",
-        str(root_mount), str(efi_partition)] + exclude_dirs
+def mksquashfs(include_dirs: List[str], exclude_dirs: List[str], image: Path):
+    all_excluded = ["dev", "proc", "run", "sys", "tmp"] + exclude_dirs
     options = ["-reproducible", "-xattrs", "-wildcards", "-noappend",
                # prevents overlayfs corruption on updates
-               "-no-exports",
-               # auto-create missing intermediate dirs (mksquashfs 4.7+)
-               "-pd", "d 0700 0 0",
-               "-p", "{} d 0700 0 0".format(root_mount),
-               "-p", "{} d 0700 0 0".format(efi_partition)]
+               "-no-exports"]
     cmd = ["mksquashfs"] + include_dirs + [str(image)] + options + ["-e"]
     for d in all_excluded:
         sd = d.strip("/")

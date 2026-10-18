@@ -15,10 +15,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: x64
       # Setup
-      - run: sudo apt-get install binutils sbsigntool
-      # directory is needed for arch linux tests
-      - run: sudo mkdir -p /etc/mkinitcpio.d
-
+      - run: sudo apt-get install binutils
       # Setup workspace
       - run: set -e
       - run: python3 --version
@@ -29,12 +26,11 @@ jobs:
       - run: pip3 install -e . --no-deps
 
       # Run Tests
-      - run: python3 -m unittest tests/unit/tests.py
+      - run: python3 -m unittest discover -s tests -t .
 
       # Check syntax
       - run: sudo apt-get install shellcheck
-      - run: shellcheck usr/lib/initcpio/install/verity-squash-root
-                        usr/lib/verity-squash-root/*
+      - run: shellcheck usr/lib/verity-squash-root/*
                         usr/lib/dracut/modules.d/99verity-squash-root/*.sh
                         usr/share/bash-completion/completions/verity-squash-root
       - run: pip3 install flake8 mypy

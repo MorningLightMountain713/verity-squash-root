@@ -43,9 +43,3 @@ class DebianConfigTest(unittest.TestCase):
         self.assertEqual(result,
                          ["6.0.1-amd64", "5.16.4-amd64",
                           "5.13.2-amd64", "5.4.2-amd64"])
-
-    def test__microcode_paths(self):
-        debian = DebianConfig("debian", "Debian GNU/Linux")
-        with self.assertRaises(NotImplementedError) as e:
-            debian.microcode_paths()
-            self.assertEqual(str(e), "Base class")

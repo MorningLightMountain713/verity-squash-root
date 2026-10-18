@@ -1,52 +1,24 @@
 import json
-import logging
 import math
 import os
 from collections import OrderedDict
 from configparser import ConfigParser
 from pathlib import Path
-from verity_squash_root.config import KERNEL_PARAM_BASE, TMPDIR, KEY_DIR
-from verity_squash_root.exec import exec_binary, ExecBinaryError
+from verity_squash_root.config import KERNEL_PARAM_BASE
+from verity_squash_root.exec import exec_binary
 from verity_squash_root.file_op import write_str_to
 
-DB_CERT_FILE = "db.crt"
-DB_KEY_FILE = "db.key"
-CMDLINE_FILE = Path("/etc/kernel/cmdline")
+
+def sign_tool() -> str:
+    # The signer holds the key; it is called as `<tool> --output <out> <in>`.
+    tool = os.environ.get("VSR_SIGN_TOOL", "").strip()
+    if not tool:
+        raise ValueError("VSR_SIGN_TOOL is not set")
+    return tool
 
 
-def file_matches_slot_or_is_broken(file: Path, slot: str):
-    search_str = " {}_slot={} ".format(KERNEL_PARAM_BASE, slot)
-    try:
-        result = exec_binary(["objcopy", "-O", "binary", "--dump-section",
-                              ".cmdline=/dev/fd/1", str(file), "/dev/null"])
-    except ExecBinaryError as e:
-        err = e.stderr()
-        if err.startswith("objcopy:") and err.endswith(": file truncated\n"):
-            logging.warning("Old efi file was truncated")
-            logging.debug(err)
-            return True
-        if err.startswith("objcopy: error: the input file '") and (
-                err.endswith("' is empty\n")):
-            logging.warning("Old efi file was empty")
-            logging.debug(err)
-            return True
-        raise e
-    text = result[0].decode()
-    return search_str in text
-
-
-def sign(key_dir: Path, in_file: Path, out_file: Path) -> None:
-    # The signing tool is configurable (VSR_SIGN_TOOL) so a caller can route
-    # signing through its own signer -- e.g. an HSM client -- instead of local
-    # sbsign, without shadowing the sbsign binary. Default keeps upstream
-    # behaviour. The tool must accept sbsign's --key/--cert/--output <in>
-    # interface (extra options it does not use may be ignored).
-    sign_tool = os.environ.get("VSR_SIGN_TOOL", "sbsign")
-    exec_binary([
-        sign_tool,
-        "--key", str(key_dir / DB_KEY_FILE),
-        "--cert",  str(key_dir / DB_CERT_FILE),
-        "--output", str(out_file), str(in_file)])
+def sign(in_file: Path, out_file: Path) -> None:
+    exec_binary([sign_tool(), "--output", str(out_file), str(in_file)])
 
 
 def calculate_efi_stub_end(stub: Path) -> int:
@@ -102,34 +74,22 @@ def create_efi_executable(stub: Path, cmdline_file: Path, linux: Path,
 
 def get_cmdline(config: ConfigParser) -> str:
     con_line = config["DEFAULT"].get("CMDLINE")
-    if con_line is not None:
-        return con_line
-    if CMDLINE_FILE.exists():
-        return CMDLINE_FILE.read_text().replace("\n", " ")
-    raise RuntimeError("CMDLINE not configured, either configure it in the "
-                       "config file or in {}".format(CMDLINE_FILE))
+    if not con_line:
+        raise ValueError("CMDLINE is not configured")
+    return con_line
 
 
 def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
-                          slot: str, root_hash: str,
-                          tmp_efi_file: Path, add_cmdline: str = "",
+                          slot: str, root_hash: str, out_file: Path,
+                          work_dir: Path, add_cmdline: str = "",
                           system_name: str = "unknown",
                           system_version: str = "0") -> None:
     # add rw, if root is mounted ro, it cannot be mounted rw later
     slot_cmd = f"{KERNEL_PARAM_BASE}_slot={slot}"
     hash_cmd = f"{KERNEL_PARAM_BASE}_hash={root_hash}"
-
-    # Allows for removal of extra space in cmdline if add_cmdline is empty
     commands = [get_cmdline(config), add_cmdline, "rw", slot_cmd, hash_cmd]
-    filtered_commands = [x for x in commands if x]
-    cmdline = " ".join(filtered_commands)
-    # cmdline = "{} rw {} {p}_slot={} {p}_hash={}".format(
-    #     get_cmdline(config),
-    #     add_cmdline,
-    #     slot,
-    #     root_hash,
-    #     p=KERNEL_PARAM_BASE)
-    cmdline_file = TMPDIR / "cmdline"
+    cmdline = " ".join(x for x in commands if x)
+    cmdline_file = work_dir / "cmdline"
     write_str_to(cmdline_file, cmdline)
 
     # Create system identity credential for PCR 12 measurement
@@ -139,7 +99,7 @@ def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
         "slot": slot,
         "hash": root_hash
     }
-    identity_file = TMPDIR / "system-identity.cred"
+    identity_file = work_dir / "system-identity.cred"
     write_str_to(identity_file, json.dumps(identity))
 
     create_efi_executable(
@@ -147,6 +107,6 @@ def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
         cmdline_file,
         vmlinuz,
         initramfs,
-        tmp_efi_file,
+        out_file,
         credentials=[("system-identity", identity_file)])
-    sign(KEY_DIR, tmp_efi_file, tmp_efi_file)
+    sign(out_file, out_file)
