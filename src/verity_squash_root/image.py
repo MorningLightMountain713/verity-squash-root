@@ -5,7 +5,7 @@ from verity_squash_root.exec import exec_binary
 
 
 def mksquashfs(include_dirs: list[str], exclude_dirs: list[str], image: Path):
-    all_excluded = ["dev", "proc", "run", "sys", "tmp"] + exclude_dirs
+    all_excluded = ["dev", "proc", "run", "sys", "tmp", *exclude_dirs]
     options = [
         "-reproducible",
         "-xattrs",
@@ -14,7 +14,7 @@ def mksquashfs(include_dirs: list[str], exclude_dirs: list[str], image: Path):
         # prevents overlayfs corruption on updates
         "-no-exports",
     ]
-    cmd = ["mksquashfs"] + include_dirs + [str(image)] + options + ["-e"]
+    cmd = ["mksquashfs", *include_dirs, str(image), *options, "-e"]
     for d in all_excluded:
         sd = d.strip("/")
         p = Path(d)

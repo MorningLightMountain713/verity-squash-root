@@ -11,15 +11,15 @@ READ_TXT_CONTENT = "This is a test str.\n"
 class FileOPTest(unittest.TestCase):
     def test__read_from(self):
         result = read_from(READ_TXT)
-        self.assertEqual(result, bytes(READ_TXT_CONTENT, "utf-8"))
+        assert result == bytes(READ_TXT_CONTENT, "utf-8")
 
     def test__read_text_from(self):
         result = read_text_from(READ_TXT)
-        self.assertEqual(result, READ_TXT_CONTENT)
+        assert result == READ_TXT_CONTENT
 
     @wrap_tempdir
     def test__write_str_to(self, tempdir):
         path = tempdir / "testfile"
         text = "Some test string\nnext line"
         write_str_to(path, text)
-        self.assertEqual(read_text_from(path), text)
+        assert read_text_from(path) == text

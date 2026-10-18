@@ -1,6 +1,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from tests.unit.helpers import get_test_files_path
 from verity_squash_root.distributions.autodetect import autodetect_distribution, load_os_release
 
@@ -14,15 +16,12 @@ class DistributionDetectTest(unittest.TestCase):
     )
     def test__load_os_release__etc(self):
         result = load_os_release()
-        self.assertEqual(
-            result,
-            {
-                "ID": "arch",
-                "NAME": "Arch Linux",
-                "HOME_URL": "arch website",
-                "LOGO": "archlinux-logo",
-            },
-        )
+        assert result == {
+            "ID": "arch",
+            "NAME": "Arch Linux",
+            "HOME_URL": "arch website",
+            "LOGO": "archlinux-logo",
+        }
 
     @mock.patch("verity_squash_root.distributions.autodetect.ETC_FILE")
     @mock.patch(
@@ -32,24 +31,20 @@ class DistributionDetectTest(unittest.TestCase):
     def test__load_os_release__usr(self, file):
         file.resolve.return_value.is_file.return_value = False
         result = load_os_release()
-        self.assertEqual(
-            result,
-            {
-                "ID": "ubuntu",
-                "ID_LIKE": "debian",
-                "NAME": "Debian GNU/Linux",
-                "HOME_URL": "their site",
-            },
-        )
+        assert result == {
+            "ID": "ubuntu",
+            "ID_LIKE": "debian",
+            "NAME": "Debian GNU/Linux",
+            "HOME_URL": "their site",
+        }
 
     @mock.patch(
         "verity_squash_root.distributions.autodetect.ETC_FILE",
         new=TEST_FILES_DIR / "etc-os-release",
     )
     def test__autodetect_distribution__unsupported(self):
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError, match=r"^Distribution arch not yet supported$"):
             autodetect_distribution()
-        self.assertEqual(str(e.exception), "Distribution arch not yet supported")
 
     @mock.patch(
         "verity_squash_root.distributions.autodetect.ETC_FILE", new=TEST_FILES_DIR / "debian"
@@ -58,7 +53,7 @@ class DistributionDetectTest(unittest.TestCase):
     def test__autodetect_distribution__debian(self, mock):
         result = autodetect_distribution()
         mock.assert_called_once_with("debian", "Debian GNU/Linux")
-        self.assertEqual(result, mock())
+        assert result == mock()
 
     @mock.patch(
         "verity_squash_root.distributions.autodetect.ETC_FILE", new=TEST_FILES_DIR / "debian-like"
@@ -67,4 +62,4 @@ class DistributionDetectTest(unittest.TestCase):
     def test__autodetect_distribution__debian_like(self, mock):
         result = autodetect_distribution()
         mock.assert_called_once_with("ubuntu", "Ubuntu 22.04")
-        self.assertEqual(result, mock())
+        assert result == mock()

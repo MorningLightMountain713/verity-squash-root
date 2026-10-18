@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import pytest
+
 from tests.unit.helpers import get_test_files_path, make_config
 from verity_squash_root.efi import (
     build_and_sign_kernel,
@@ -28,20 +30,18 @@ class EfiTest(unittest.TestCase):
     def test__sign_tool__unset(self):
         for env in [{}, {"VSR_SIGN_TOOL": " "}]:
             with mock.patch.dict(os.environ, env, clear=True):
-                with self.assertRaises(ValueError) as e:
+                with pytest.raises(ValueError, match=r"^VSR_SIGN_TOOL is not set$"):
                     sign_tool()
-                self.assertEqual(str(e.exception), "VSR_SIGN_TOOL is not set")
 
     def test__calculate_efi_stub_end(self):
-        self.assertEqual(calculate_efi_stub_end(TEST_FILES_DIR / "stub_slot_a.efi"), 74064)
+        assert calculate_efi_stub_end(TEST_FILES_DIR / "stub_slot_a.efi") == 74064
 
     def test__calculate_efi_stub_alignment(self):
-        self.assertEqual(calculate_efi_stub_alignment(TEST_FILES_DIR / "stub_slot_a.efi"), 512)
+        assert calculate_efi_stub_alignment(TEST_FILES_DIR / "stub_slot_a.efi") == 512
 
     def test__calculate_efi_stub_alignment__not_found(self):
-        with self.assertRaises(ValueError) as e_ctx:
+        with pytest.raises(ValueError, match=r"^Efistub SectionAlignment not found$"):
             calculate_efi_stub_alignment(TEST_FILES_DIR / "no_sections_or_info")
-        self.assertEqual(str(e_ctx.exception), "Efistub SectionAlignment not found")
 
     @mock.patch("verity_squash_root.efi.calculate_efi_stub_alignment")
     @mock.patch("verity_squash_root.efi.exec_binary")
@@ -89,14 +89,13 @@ class EfiTest(unittest.TestCase):
 
     def test__get_cmdline(self):
         cmdline = "rw encrypt=/dev/sda2 quiet"
-        self.assertEqual(get_cmdline(make_config({"DEFAULT": {"CMDLINE": cmdline}})), cmdline)
+        assert get_cmdline(make_config({"DEFAULT": {"CMDLINE": cmdline}})) == cmdline
 
     def test__get_cmdline__unset(self):
         for sections in [{"DEFAULT": {}}, {"DEFAULT": {"CMDLINE": ""}}]:
             config = make_config(sections)
-            with self.assertRaises(ValueError) as e:
+            with pytest.raises(ValueError, match=r"^CMDLINE is not configured$"):
                 get_cmdline(config)
-            self.assertEqual(str(e.exception), "CMDLINE is not configured")
 
     def test__build_and_sign_kernel(self):
         all_mocks = mock.Mock()
@@ -131,30 +130,25 @@ class EfiTest(unittest.TestCase):
                 "fluxos",
                 "42",
             )
-            self.assertEqual(
-                all_mocks.mock_calls,
-                [
-                    call.get_cmdline(config),
-                    call.write_str_to(
-                        Path("/work/cmdline"),
-                        (
-                            "rw encrypt=/dev/sda2 quiet tmpfsparam rw "
-                            "verity_squash_root_slot=a "
-                            "verity_squash_root_hash=567myhash234"
-                        ),
-                    ),
-                    call.write_str_to(Path("/work/system-identity.cred"), identity),
-                    call.efi.create_efi_executable(
-                        Path("/usr/lib/systemd/mystub.efi"),
-                        Path("/work/cmdline"),
-                        Path("/boot/vmlinuz"),
-                        Path("/work/initramfs.img"),
-                        Path("/work/file.efi"),
-                        credentials=[("system-identity", Path("/work/system-identity.cred"))],
-                    ),
-                    call.efi.sign(Path("/work/file.efi"), Path("/work/file.efi")),
-                ],
-            )
+            assert all_mocks.mock_calls == [
+                call.get_cmdline(config),
+                call.write_str_to(
+                    Path("/work/cmdline"),
+                    "rw encrypt=/dev/sda2 quiet tmpfsparam rw "
+                    "verity_squash_root_slot=a "
+                    "verity_squash_root_hash=567myhash234",
+                ),
+                call.write_str_to(Path("/work/system-identity.cred"), identity),
+                call.efi.create_efi_executable(
+                    Path("/usr/lib/systemd/mystub.efi"),
+                    Path("/work/cmdline"),
+                    Path("/boot/vmlinuz"),
+                    Path("/work/initramfs.img"),
+                    Path("/work/file.efi"),
+                    credentials=[("system-identity", Path("/work/system-identity.cred"))],
+                ),
+                call.efi.sign(Path("/work/file.efi"), Path("/work/file.efi")),
+            ]
 
             all_mocks.reset_mock()
 
@@ -168,13 +162,8 @@ class EfiTest(unittest.TestCase):
                 Path("/work/f.efi"),
                 work,
             )
-            self.assertEqual(
-                all_mocks.mock_calls[1],
-                call.write_str_to(
-                    Path("/work/cmdline"),
-                    (
-                        "encrypt=/dev/sda2 quiet rw verity_squash_root_slot=b "
-                        "verity_squash_root_hash=853anotherhash723"
-                    ),
-                ),
+            assert all_mocks.mock_calls[1] == call.write_str_to(
+                Path("/work/cmdline"),
+                "encrypt=/dev/sda2 quiet rw verity_squash_root_slot=b "
+                "verity_squash_root_hash=853anotherhash723",
             )

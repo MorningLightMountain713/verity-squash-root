@@ -11,14 +11,14 @@ class ImageTest(unittest.TestCase):
     def test__veritysetup_image(self, mock):
         mock.return_value = (b"Test: 5\nRoot hash: 0x1256890\nLine", b"")
         root_hash = veritysetup_image(Path("/myimage.squashfs"))
-        self.assertEqual(root_hash, "0x1256890")
+        assert root_hash == "0x1256890"
         mock.assert_called_once_with(
             ["veritysetup", "format", "/myimage.squashfs", "/myimage.squashfs.verity"]
         )
 
     def test__verity_image_path(self):
-        self.assertEqual(
-            verity_image_path(Path("/mnt/root/my_img.iso")), Path("/mnt/root/my_img.iso.verity")
+        assert verity_image_path(Path("/mnt/root/my_img.iso")) == Path(
+            "/mnt/root/my_img.iso.verity"
         )
 
     @mock.patch("verity_squash_root.image.exec_binary")

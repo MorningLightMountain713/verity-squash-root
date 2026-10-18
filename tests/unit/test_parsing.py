@@ -11,14 +11,11 @@ class ParsingTest(unittest.TestCase):
             "Var = Val\nTest = 1\nVar = Overwritten\n"
         )
         result = info_to_dict(text, "=")
-        self.assertEqual(
-            result,
-            {
-                "Somekey": "Somevalue",
-                "Anotherkey": "Anothervalue",
-                "Test": "1",
-                "Var": "Overwritten",
-            },
-        )
+        assert result == {
+            "Somekey": "Somevalue",
+            "Anotherkey": "Anothervalue",
+            "Test": "1",
+            "Var": "Overwritten",
+        }
 
-        self.assertEqual(info_to_dict("Var: val"), {"Var": "val"})
+        assert info_to_dict("Var: val") == {"Var": "val"}

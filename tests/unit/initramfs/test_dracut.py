@@ -10,8 +10,8 @@ class DracutTest(unittest.TestCase):
         distri = Mock()
         dracut = Dracut(distri)
         res = dracut.file_name("5.17.2")
-        self.assertEqual(distri.mock_calls, [call.kernel_to_name("5.17.2")])
-        self.assertEqual(res, distri.kernel_to_name())
+        assert distri.mock_calls == [call.kernel_to_name("5.17.2")]
+        assert res == distri.kernel_to_name()
 
     def test__display_name(self):
         distri = Mock()
@@ -19,30 +19,27 @@ class DracutTest(unittest.TestCase):
         distri.kernel_to_name.return_value = "hardened-linux"
         dracut = Dracut(distri)
         res = dracut.display_name("5.17.2")
-        self.assertEqual(distri.mock_calls, [call.kernel_to_name("5.17.2"), call.display_name()])
-        self.assertEqual(res, "Debian Hardened linux")
+        assert distri.mock_calls == [call.kernel_to_name("5.17.2"), call.display_name()]
+        assert res == "Debian Hardened linux"
 
     @patch("verity_squash_root.initramfs.dracut.exec_binary")
     def test__build_initramfs(self, exec_mock):
         distri = Mock()
         dracut = Dracut(distri)
         result = dracut.build_initramfs("5.17.2", Path("/work"))
-        self.assertEqual(result, Path("/work/5.17.2.image"))
-        self.assertEqual(distri.mock_calls, [])
-        self.assertEqual(
-            exec_mock.mock_calls,
-            [
-                call(
-                    [
-                        "dracut",
-                        "--kver",
-                        "5.17.2",
-                        "--no-uefi",
-                        "--early-microcode",
-                        "--add",
-                        "verity-squash-root",
-                        "/work/5.17.2.image",
-                    ]
-                )
-            ],
-        )
+        assert result == Path("/work/5.17.2.image")
+        assert distri.mock_calls == []
+        assert exec_mock.mock_calls == [
+            call(
+                [
+                    "dracut",
+                    "--kver",
+                    "5.17.2",
+                    "--no-uefi",
+                    "--early-microcode",
+                    "--add",
+                    "verity-squash-root",
+                    "/work/5.17.2.image",
+                ]
+            )
+        ]

@@ -73,7 +73,7 @@ def create_efi_executable(
         size = file.stat().st_size
         cmd += [
             "--add-section",
-            f".{name}={str(file)}",
+            f".{name}={file!s}",
             "--change-section-vma",
             f".{name}={hex(offset)}",
         ]

@@ -16,6 +16,6 @@ class BaseDistributionTest(unittest.TestCase):
         ]
         distri = DistributionConfig("debian", "Debian")
         with mock.patch.dict(os.environ, {"VSR_KERNEL_VERSIONS": " 7.0-flux, 6.1-a"}):
-            self.assertEqual(distri.list_kernels(), ["7.0-flux", "6.1-a"])
+            assert distri.list_kernels() == ["7.0-flux", "6.1-a"]
         with mock.patch.dict(os.environ, {"VSR_KERNEL_VERSIONS": ""}):
-            self.assertEqual(distri.list_kernels(), ["7.0-flux", "7.0-b", "6.1-a"])
+            assert distri.list_kernels() == ["7.0-flux", "7.0-b", "6.1-a"]

@@ -20,7 +20,7 @@ def exec_binary(cmd: list[str], expect_returncode: int = 0) -> tuple[bytes, byte
         raise ChildProcessError("Cannot execute empty cmd")
     try:
         logging.debug(f"Execute {cmd}")
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603 - argv from this package, never a shell
     except FileNotFoundError:
         raise ChildProcessError(f"Binary not found: {cmd[0]}, is it installed?") from None
     result = proc.communicate()

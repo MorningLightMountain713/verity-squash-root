@@ -3,6 +3,8 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import call
 
+import pytest
+
 from tests.unit.helpers import create_initramfs_mock, distribution_mock, make_config, wrap_tempdir
 from verity_squash_root.main import (
     create_image_and_sign_kernel,
@@ -30,16 +32,11 @@ class MainTest(unittest.TestCase):
             mock.patch(f"{base}.mksquashfs", new=all_mocks.mksquashfs),
         ):
             result = create_squashfs_return_verity_hash(config, Path("/work/test.img"))
-            self.assertEqual(
-                all_mocks.mock_calls,
-                [
-                    call.mksquashfs(
-                        ["/root/target"], ["var/lib", "opt/var"], Path("/work/test.img")
-                    ),
-                    call.veritysetup_image(Path("/work/test.img")),
-                ],
-            )
-            self.assertEqual(result, all_mocks.veritysetup_image())
+            assert all_mocks.mock_calls == [
+                call.mksquashfs(["/root/target"], ["var/lib", "opt/var"], Path("/work/test.img")),
+                call.veritysetup_image(Path("/work/test.img")),
+            ]
+            assert result == all_mocks.veritysetup_image()
 
     def _create_image(self, variants):
         base = "verity_squash_root.main"
@@ -99,26 +96,21 @@ class MainTest(unittest.TestCase):
 
     def test__create_image_and_sign_kernel__persistent(self):
         all_mocks, config = self._create_image("persistent")
-        self.assertEqual(
-            all_mocks.mock_calls,
-            [
-                call.cmdline.generate_slot(),
-                call.mkdir(parents=True, exist_ok=True),
-                call.create_squashfs_return_verity_hash(config, Path("/work/tmp.squashfs")),
-                call.write_str_to(Path("/opt/mnt/root/root_hash"), "f00d"),
-            ]
-            + self._efi_calls(config, "5.19", "", "linux.efi")
-            + self._efi_calls(config, "5.14", "", "linux-lts.efi")
-            + [
-                call.shutil.move(
-                    Path("/work/tmp.squashfs"), Path("/opt/mnt/root/images/image_abcd1234.squashfs")
-                ),
-                call.shutil.move(
-                    Path("/work/tmp.squashfs.verity"),
-                    Path("/opt/mnt/root/images/image_abcd1234.squashfs.verity"),
-                ),
-            ],
-        )
+        assert all_mocks.mock_calls == [
+            call.cmdline.generate_slot(),
+            call.mkdir(parents=True, exist_ok=True),
+            call.create_squashfs_return_verity_hash(config, Path("/work/tmp.squashfs")),
+            call.write_str_to(Path("/opt/mnt/root/root_hash"), "f00d"),
+            *self._efi_calls(config, "5.19", "", "linux.efi"),
+            *self._efi_calls(config, "5.14", "", "linux-lts.efi"),
+            call.shutil.move(
+                Path("/work/tmp.squashfs"), Path("/opt/mnt/root/images/image_abcd1234.squashfs")
+            ),
+            call.shutil.move(
+                Path("/work/tmp.squashfs.verity"),
+                Path("/opt/mnt/root/images/image_abcd1234.squashfs.verity"),
+            ),
+        ]
 
     def test__create_image_and_sign_kernel__both(self):
         all_mocks, config = self._create_image(" persistent, volatile ")
@@ -126,28 +118,23 @@ class MainTest(unittest.TestCase):
             c for c in all_mocks.mock_calls if c[0] in ("efi.build_and_sign_kernel", "shutil.move")
         ]
         volatile = "verity_squash_root_volatile"
-        self.assertEqual(
-            efi_calls[:8],
-            self._efi_calls(config, "5.19", "", "linux.efi")
-            + self._efi_calls(config, "5.19", volatile, "linux_tmpfs.efi")
-            + self._efi_calls(config, "5.14", "", "linux-lts.efi")
-            + self._efi_calls(config, "5.14", volatile, "linux-lts_tmpfs.efi"),
+        assert efi_calls[:8] == self._efi_calls(config, "5.19", "", "linux.efi") + self._efi_calls(
+            config, "5.19", volatile, "linux_tmpfs.efi"
+        ) + self._efi_calls(config, "5.14", "", "linux-lts.efi") + self._efi_calls(
+            config, "5.14", volatile, "linux-lts_tmpfs.efi"
         )
 
     def test__create_image_and_sign_kernel__volatile(self):
-        all_mocks, config = self._create_image("volatile")
+        all_mocks, _config = self._create_image("volatile")
         built = [
             c.args[1]
             for c in all_mocks.mock_calls
             if c[0] == "shutil.move" and c.args[0].suffix == ".efi"
         ]
-        self.assertEqual(
-            built,
-            [
-                Path("/boot/efi/EFI/verity_squash_root/ArchEfi/linux_tmpfs.efi"),
-                Path("/boot/efi/EFI/verity_squash_root/ArchEfi/linux-lts_tmpfs.efi"),
-            ],
-        )
+        assert built == [
+            Path("/boot/efi/EFI/verity_squash_root/ArchEfi/linux_tmpfs.efi"),
+            Path("/boot/efi/EFI/verity_squash_root/ArchEfi/linux-lts_tmpfs.efi"),
+        ]
 
     @wrap_tempdir
     def test__sign_extra_files(self, tempdir):
@@ -165,17 +152,12 @@ class MainTest(unittest.TestCase):
         )
         with mock.patch(f"{base}.efi", new=all_mocks.efi):
             sign_extra_files(config)
-            self.assertTrue(systemd_out.resolve().parent.is_dir())
-            self.assertTrue(fwupd_out.resolve().parent.is_dir())
-            self.assertEqual(
-                all_mocks.mock_calls,
-                [
-                    call.efi.sign(
-                        Path("/usr/lib/systemd/boot/efi/systemd-bootx64.efi"), systemd_out
-                    ),
-                    call.efi.sign(Path("/usr/lib/fwupd/fwupd.efi"), fwupd_out),
-                ],
-            )
+            assert systemd_out.resolve().parent.is_dir()
+            assert fwupd_out.resolve().parent.is_dir()
+            assert all_mocks.mock_calls == [
+                call.efi.sign(Path("/usr/lib/systemd/boot/efi/systemd-bootx64.efi"), systemd_out),
+                call.efi.sign(Path("/usr/lib/fwupd/fwupd.efi"), fwupd_out),
+            ]
 
     def test__sign_extra_files__exception(self):
         base = "verity_squash_root.main"
@@ -192,18 +174,14 @@ class MainTest(unittest.TestCase):
             }
         )
         with mock.patch(f"{base}.efi", new=all_mocks.efi):
-            with self.assertRaises(ValueError) as e:
+            with pytest.raises(
+                ValueError,
+                match=r"^extra signing files need to be specified as\nname = SOURCE => DEST$",
+            ):
                 sign_extra_files(config)
-            self.assertEqual(
-                str(e.exception),
-                "extra signing files need to be specified as\nname = SOURCE => DEST",
-            )
-            self.assertEqual(
-                all_mocks.mock_calls,
-                [
-                    call.efi.sign(
-                        Path("/usr/lib/systemd/boot/efi/systemd-bootx64.efi"),
-                        Path("/systemd-bootx64.efi"),
-                    )
-                ],
-            )
+            assert all_mocks.mock_calls == [
+                call.efi.sign(
+                    Path("/usr/lib/systemd/boot/efi/systemd-bootx64.efi"),
+                    Path("/systemd-bootx64.efi"),
+                )
+            ]
