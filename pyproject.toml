@@ -1,0 +1,49 @@
+[project]
+name = "verity-squash-root"
+version = "0.4.0"
+description = "Build a signed efi binary which mounts a verified squashfs image as rootfs"
+readme = "Readme.md"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+authors = [
+    { name = "Simon Brand", email = "simon.brand@postadigitale.de" },
+    { name = "David White", email = "david@runonflux.io" },
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+verity-squash-root = "verity_squash_root:parse_params_and_run"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "verity_squash_root"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+    "ruff>=0.12.0",
+    "ty>=0.0.1a1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+]

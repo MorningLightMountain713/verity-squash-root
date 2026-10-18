@@ -89,11 +89,12 @@ squashfs-tools
 systemd-boot-efi (only when no other efi-stub is configured)
 ```
 
-Run unit tests:
-
 ```shell
-python3 -m venv .venv
-.venv/bin/pip install -e . --no-deps
-.venv/bin/pip install pycodestyle pyflakes
-.venv/bin/python -m unittest discover -s tests -t .
+uv sync
+uv run pytest
+uv run ruff check
+uv run ruff format --check
+uv run ty check
 ```
+
+`uv.lock` is made on Linux.

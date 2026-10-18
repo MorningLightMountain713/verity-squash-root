@@ -7,7 +7,7 @@ SERVICEDIR := usr/lib/systemd/system
 all: dist/*.whl
 
 dist/*.whl:
-	python -m build --wheel --no-isolation
+	uv build --wheel
 
 install-no-py:
 	install -dm 755 $(DESTDIR)
