@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from configparser import ConfigParser
 from pathlib import Path
 from unittest import mock
 
@@ -21,11 +22,17 @@ def wrap_tempdir(func):
     return f
 
 
+def make_config(sections: dict[str, dict[str, str]]) -> ConfigParser:
+    config = ConfigParser(default_section="DO_NOT_USE_DEFAULTS")
+    config.read_dict(sections)
+    return config
+
+
 def distribution_mock():
     obj_kernel = {"5.19": "linux", "5.14": "linux-lts"}
 
     def vmlinuz(kernel):
-        return Path("/lib64/modules/{}/vmlinuz".format(kernel))
+        return Path(f"/lib64/modules/{kernel}/vmlinuz")
 
     def kernel_to_name(kernel):
         return obj_kernel[kernel]
@@ -46,8 +53,7 @@ def create_initramfs_mock(distri):
         return distri.kernel_to_name(kernel)
 
     def display_name(kernel):
-        return "Display {}".format(
-            distri.kernel_to_name(kernel).capitalize())
+        return f"Display {distri.kernel_to_name(kernel).capitalize()}"
 
     initramfs_mock.file_name.side_effect = file_name
     initramfs_mock.display_name.side_effect = display_name

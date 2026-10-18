@@ -1,9 +1,10 @@
 from collections.abc import Mapping
 from pathlib import Path
-from verity_squash_root.file_op import read_text_from
+
+import verity_squash_root.parsing as parsing
 from verity_squash_root.distributions.base import DistributionConfig
 from verity_squash_root.distributions.debian import DebianConfig
-import verity_squash_root.parsing as parsing
+from verity_squash_root.file_op import read_text_from
 
 ETC_FILE = Path("/etc/os-release")
 USR_FILE = Path("/usr/lib/os-release")
@@ -27,5 +28,4 @@ def autodetect_distribution() -> DistributionConfig:
     os_name = info.get("NAME", "")
     if os_id == "debian" or info.get("ID_LIKE") == "debian":
         return DebianConfig(os_id, os_name)
-    raise ValueError(
-        "Distribution {} not yet supported".format(info.get("ID")))
+    raise ValueError("Distribution {} not yet supported".format(info.get("ID")))

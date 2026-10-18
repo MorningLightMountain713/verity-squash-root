@@ -1,11 +1,11 @@
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, call, patch
+
 from verity_squash_root.initramfs.dracut import Dracut
 
 
 class DracutTest(unittest.TestCase):
-
     def test__file_name(self):
         distri = Mock()
         dracut = Dracut(distri)
@@ -19,10 +19,7 @@ class DracutTest(unittest.TestCase):
         distri.kernel_to_name.return_value = "hardened-linux"
         dracut = Dracut(distri)
         res = dracut.display_name("5.17.2")
-        self.assertEqual(
-            distri.mock_calls,
-            [call.kernel_to_name("5.17.2"),
-             call.display_name()])
+        self.assertEqual(distri.mock_calls, [call.kernel_to_name("5.17.2"), call.display_name()])
         self.assertEqual(res, "Debian Hardened linux")
 
     @patch("verity_squash_root.initramfs.dracut.exec_binary")
@@ -34,10 +31,18 @@ class DracutTest(unittest.TestCase):
         self.assertEqual(distri.mock_calls, [])
         self.assertEqual(
             exec_mock.mock_calls,
-            [call(["dracut",
-                   "--kver", "5.17.2",
-                   "--no-uefi",
-                   "--early-microcode",
-                   "--add",
-                   "verity-squash-root",
-                   "/work/5.17.2.image"])])
+            [
+                call(
+                    [
+                        "dracut",
+                        "--kver",
+                        "5.17.2",
+                        "--no-uefi",
+                        "--early-microcode",
+                        "--add",
+                        "verity-squash-root",
+                        "/work/5.17.2.image",
+                    ]
+                )
+            ],
+        )

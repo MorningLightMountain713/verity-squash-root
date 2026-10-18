@@ -1,11 +1,9 @@
 import os
 import re
 from pathlib import Path
-from typing import List
 
 
 class DistributionConfig:
-
     _modules_dir: Path = Path("/usr/lib/modules")
     __os_id: str = ""
     __os_name: str = ""
@@ -26,7 +24,7 @@ class DistributionConfig:
     def vmlinuz(self, kernel: str) -> Path:
         return self._modules_dir / kernel / "vmlinuz"
 
-    def list_kernels(self) -> List[str]:
+    def list_kernels(self) -> list[str]:
         def int_or_str(e):
             try:
                 return int(e)
@@ -34,11 +32,11 @@ class DistributionConfig:
                 return e
 
         def human_sort(e):
-            return [int_or_str(a)
-                    for a in re.split('([0-9]+)', e)]
+            return [int_or_str(a) for a in re.split("([0-9]+)", e)]
 
-        kernels = sorted([k.name for k in self._modules_dir.iterdir()],
-                         reverse=True, key=human_sort)
+        kernels = sorted(
+            [k.name for k in self._modules_dir.iterdir()], reverse=True, key=human_sort
+        )
 
         # VSR_KERNEL_VERSIONS (comma-separated), when set, limits the build
         # to those kernels; unset or empty builds every installed kernel.

@@ -1,18 +1,16 @@
 from configparser import ConfigParser
 from pathlib import Path
-from typing import List
-
 
 KERNEL_PARAM_BASE = "verity_squash_root"
-CONFIG_DIR = Path("/etc/{}".format(KERNEL_PARAM_BASE))
+CONFIG_DIR = Path(f"/etc/{KERNEL_PARAM_BASE}")
 CONFIG_FILE = CONFIG_DIR / "config.ini"
 DISTRI_FILE = Path("/usr/share") / KERNEL_PARAM_BASE / "default.ini"
-LOG_FILE = Path("/var/log/{}.log".format(KERNEL_PARAM_BASE))
+LOG_FILE = Path(f"/var/log/{KERNEL_PARAM_BASE}.log")
 EFI_PATH = Path("EFI")
 EFI_KERNELS = EFI_PATH / KERNEL_PARAM_BASE
 
 
-def config_str_to_stripped_arr(s: str) -> List[str]:
+def config_str_to_stripped_arr(s: str) -> list[str]:
     return [i.strip() for i in s.split(",") if i.strip()]
 
 

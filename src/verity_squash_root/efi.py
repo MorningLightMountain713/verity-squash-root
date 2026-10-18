@@ -4,6 +4,7 @@ import os
 from collections import OrderedDict
 from configparser import ConfigParser
 from pathlib import Path
+
 from verity_squash_root.config import KERNEL_PARAM_BASE
 from verity_squash_root.exec import exec_binary
 from verity_squash_root.file_op import write_str_to
@@ -40,9 +41,14 @@ def calculate_efi_stub_alignment(stub: Path) -> int:
 
 
 # TODO: use systemd-ukify when Debian 13 is stable
-def create_efi_executable(stub: Path, cmdline_file: Path, linux: Path,
-                          initrd: Path, dest: Path,
-                          credentials: list[tuple[str, Path]] | None = None):
+def create_efi_executable(
+    stub: Path,
+    cmdline_file: Path,
+    linux: Path,
+    initrd: Path,
+    dest: Path,
+    credentials: list[tuple[str, Path]] | None = None,
+):
     offset = calculate_efi_stub_end(stub)
     alignment = calculate_efi_stub_alignment(stub)
     sections = OrderedDict()
@@ -65,8 +71,12 @@ def create_efi_executable(stub: Path, cmdline_file: Path, linux: Path,
     for name, file in sections.items():
         offset = alignment * math.ceil(offset / alignment)
         size = file.stat().st_size
-        cmd += ["--add-section", ".{}={}".format(name, str(file)),
-                "--change-section-vma", ".{}={}".format(name, hex(offset))]
+        cmd += [
+            "--add-section",
+            f".{name}={str(file)}",
+            "--change-section-vma",
+            f".{name}={hex(offset)}",
+        ]
         offset = offset + size
     cmd += [str(stub), str(dest)]
     exec_binary(cmd)
@@ -79,11 +89,18 @@ def get_cmdline(config: ConfigParser) -> str:
     return con_line
 
 
-def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
-                          slot: str, root_hash: str, out_file: Path,
-                          work_dir: Path, add_cmdline: str = "",
-                          system_name: str = "unknown",
-                          system_version: str = "0") -> None:
+def build_and_sign_kernel(
+    config: ConfigParser,
+    vmlinuz: Path,
+    initramfs: Path,
+    slot: str,
+    root_hash: str,
+    out_file: Path,
+    work_dir: Path,
+    add_cmdline: str = "",
+    system_name: str = "unknown",
+    system_version: str = "0",
+) -> None:
     # add rw, if root is mounted ro, it cannot be mounted rw later
     slot_cmd = f"{KERNEL_PARAM_BASE}_slot={slot}"
     hash_cmd = f"{KERNEL_PARAM_BASE}_hash={root_hash}"
@@ -93,12 +110,7 @@ def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
     write_str_to(cmdline_file, cmdline)
 
     # Create system identity credential for PCR 12 measurement
-    identity = {
-        "system": system_name,
-        "version": system_version,
-        "slot": slot,
-        "hash": root_hash
-    }
+    identity = {"system": system_name, "version": system_version, "slot": slot, "hash": root_hash}
     identity_file = work_dir / "system-identity.cred"
     write_str_to(identity_file, json.dumps(identity))
 
@@ -108,5 +120,6 @@ def build_and_sign_kernel(config: ConfigParser, vmlinuz: Path, initramfs: Path,
         vmlinuz,
         initramfs,
         out_file,
-        credentials=[("system-identity", identity_file)])
+        credentials=[("system-identity", identity_file)],
+    )
     sign(out_file, out_file)

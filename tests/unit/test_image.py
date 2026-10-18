@@ -1,51 +1,86 @@
 import unittest
 from pathlib import Path
 from unittest import mock
-from verity_squash_root.image import mksquashfs, veritysetup_image, \
-    verity_image_path
+
 from tests.unit.helpers import PROJECT_ROOT
+from verity_squash_root.image import mksquashfs, verity_image_path, veritysetup_image
 
 
 class ImageTest(unittest.TestCase):
-
     @mock.patch("verity_squash_root.image.exec_binary")
     def test__veritysetup_image(self, mock):
-        mock.return_value = (b'Test: 5\nRoot hash: 0x1256890\nLine', b'')
+        mock.return_value = (b"Test: 5\nRoot hash: 0x1256890\nLine", b"")
         root_hash = veritysetup_image(Path("/myimage.squashfs"))
         self.assertEqual(root_hash, "0x1256890")
         mock.assert_called_once_with(
-            ["veritysetup", "format", "/myimage.squashfs",
-             "/myimage.squashfs.verity"])
+            ["veritysetup", "format", "/myimage.squashfs", "/myimage.squashfs.verity"]
+        )
 
     def test__verity_image_path(self):
-        self.assertEqual(verity_image_path(Path("/mnt/root/my_img.iso")),
-                         Path("/mnt/root/my_img.iso.verity"))
+        self.assertEqual(
+            verity_image_path(Path("/mnt/root/my_img.iso")), Path("/mnt/root/my_img.iso.verity")
+        )
 
     @mock.patch("verity_squash_root.image.exec_binary")
     def test__mksquashfs(self, mock):
         setup = str(PROJECT_ROOT / "Makefile")
-        mksquashfs(["/root/target"],
-                   ["var/!(lib)", "/home", setup, "/root"],
-                   Path("/image.squashfs"))
+        mksquashfs(
+            ["/root/target"], ["var/!(lib)", "/home", setup, "/root"], Path("/image.squashfs")
+        )
         mock.assert_called_once_with(
-            ['mksquashfs', '/root/target', '/image.squashfs',
-             '-reproducible', '-xattrs', '-wildcards', '-noappend',
-             '-no-exports',
-             '-e', 'dev/*', 'dev/.*',
-             'proc/*', 'proc/.*', 'run/*', 'run/.*', 'sys/*', 'sys/.*',
-             'tmp/*', 'tmp/.*',
-             'var/!(lib)/*', 'var/!(lib)/.*',
-             'home/*', 'home/.*',
-             setup[1:],
-             'root/*', 'root/.*'])
+            [
+                "mksquashfs",
+                "/root/target",
+                "/image.squashfs",
+                "-reproducible",
+                "-xattrs",
+                "-wildcards",
+                "-noappend",
+                "-no-exports",
+                "-e",
+                "dev/*",
+                "dev/.*",
+                "proc/*",
+                "proc/.*",
+                "run/*",
+                "run/.*",
+                "sys/*",
+                "sys/.*",
+                "tmp/*",
+                "tmp/.*",
+                "var/!(lib)/*",
+                "var/!(lib)/.*",
+                "home/*",
+                "home/.*",
+                setup[1:],
+                "root/*",
+                "root/.*",
+            ]
+        )
 
     @mock.patch("verity_squash_root.image.exec_binary")
     def test__mksquashfs__no_excludes(self, mock):
         mksquashfs(["/root/target"], [], Path("/image.squashfs"))
         mock.assert_called_once_with(
-            ['mksquashfs', '/root/target', '/image.squashfs',
-             '-reproducible', '-xattrs', '-wildcards', '-noappend',
-             '-no-exports',
-             '-e', 'dev/*', 'dev/.*',
-             'proc/*', 'proc/.*', 'run/*', 'run/.*', 'sys/*', 'sys/.*',
-             'tmp/*', 'tmp/.*'])
+            [
+                "mksquashfs",
+                "/root/target",
+                "/image.squashfs",
+                "-reproducible",
+                "-xattrs",
+                "-wildcards",
+                "-noappend",
+                "-no-exports",
+                "-e",
+                "dev/*",
+                "dev/.*",
+                "proc/*",
+                "proc/.*",
+                "run/*",
+                "run/.*",
+                "sys/*",
+                "sys/.*",
+                "tmp/*",
+                "tmp/.*",
+            ]
+        )

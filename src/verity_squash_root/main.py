@@ -1,7 +1,8 @@
 import logging
 import shutil
-from pathlib import Path
 from configparser import ConfigParser
+from pathlib import Path
+
 import verity_squash_root.cmdline as cmdline
 import verity_squash_root.efi as efi
 from verity_squash_root.config import EFI_KERNELS, config_str_to_stripped_arr
@@ -10,16 +11,14 @@ from verity_squash_root.file_names import configured_variants
 from verity_squash_root.file_op import write_str_to
 from verity_squash_root.image import (
     mksquashfs,
-    veritysetup_image,
     verity_image_path,
+    veritysetup_image,
 )
 from verity_squash_root.initramfs.dracut import Dracut
 
 
-def create_squashfs_return_verity_hash(
-    config: ConfigParser, image: Path
-) -> str:
-    logging.debug("Image path: {}".format(image))
+def create_squashfs_return_verity_hash(config: ConfigParser, image: Path) -> str:
+    logging.debug(f"Image path: {image}")
     defaults = config["DEFAULT"]
     include_dirs = config_str_to_stripped_arr(defaults["INCLUDE_DIRS"])
     exclude_dirs = config_str_to_stripped_arr(defaults["EXCLUDE_DIRS"])
@@ -42,23 +41,22 @@ def create_image_and_sign_kernel(
     efi_partition = Path(config["DEFAULT"]["EFI_PARTITION"])
     out_dir = efi_partition / EFI_KERNELS / distribution.efi_dirname()
     out_dir.mkdir(parents=True, exist_ok=True)
-    logging.info("Using slot {} for new image".format(use_slot))
+    logging.info(f"Using slot {use_slot} for new image")
     root_mount = Path(config["DEFAULT"]["ROOT_MOUNT"])
-    image = root_mount / "images/image_{}.squashfs".format(use_slot)
+    image = root_mount / f"images/image_{use_slot}.squashfs"
     tmp_image = work_dir / "tmp.squashfs"
     root_hash = create_squashfs_return_verity_hash(config, tmp_image)
     write_str_to(root_mount / "root_hash", root_hash)
-    logging.debug("Calculated root hash: {}".format(root_hash))
+    logging.debug(f"Calculated root hash: {root_hash}")
 
     for kernel in distribution.list_kernels():
         base_name = initramfs.file_name(kernel)
         display = initramfs.display_name(kernel)
-        logging.info("Create initramfs for {}".format(display))
+        logging.info(f"Create initramfs for {display}")
         initramfs_path = initramfs.build_initramfs(kernel, work_dir)
 
         for variant in variants:
-            logging.info("Processing {}{}".format(
-                display, variant.label_suffix))
+            logging.info(f"Processing {display}{variant.label_suffix}")
             tmp_efi_file = work_dir / "tmp.efi"
             efi.build_and_sign_kernel(
                 config,
@@ -72,8 +70,8 @@ def create_image_and_sign_kernel(
                 system_name,
                 system_version,
             )
-            out = out_dir / "{}{}.efi".format(base_name, variant.file_suffix)
-            logging.debug("Write efi to {}".format(out))
+            out = out_dir / f"{base_name}{variant.file_suffix}.efi"
+            logging.debug(f"Write efi to {out}")
             shutil.move(tmp_efi_file, out)
 
     # Only replace old image if initramfs was successfully created
@@ -84,15 +82,12 @@ def create_image_and_sign_kernel(
 def sign_extra_files(config: ConfigParser):
     extra = config["EXTRA_SIGN"]
     for key in extra.keys():
-        logging.info("Signing {}...".format(key))
+        logging.info(f"Signing {key}...")
         files = extra[key].split("=>")
         if len(files) != 2:
-            raise ValueError(
-                "extra signing files need to be specified as\n"
-                "name = SOURCE => DEST"
-            )
+            raise ValueError("extra signing files need to be specified as\nname = SOURCE => DEST")
         src = Path(files[0].strip())
         dest = Path(files[1].strip())
-        logging.debug("Sign file '{}' to '{}'".format(src, dest))
+        logging.debug(f"Sign file '{src}' to '{dest}'")
         dest.resolve().parent.mkdir(parents=True, exist_ok=True)
         efi.sign(src, dest)
